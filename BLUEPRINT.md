@@ -43,7 +43,8 @@ the returned actions), plus the **vault**.
 ## 2. Glossary
 
 - **CUA** — computer-use agent: takes a screenshot + task, emits GUI actions (click/type/scroll).
-- **Holo3** — H Company's vision computer-use model. This project uses **Holo3-122B-A10B** only.
+- **Holo3** — H Company's vision computer-use model. This project uses Overshoot's
+  **`Hcompany/Holo3-35B-A3B`** model only.
   Consumes images + text; has **no audio input**.
 - **HoloDesktop CLI** — the harness (`github.com/hcompai/holo-desktop-cli`, Apache-2.0, Python/uv).
   Its open code is the CLI/integration wrapper; it downloads a **closed `hai-agent-runtime`
@@ -63,7 +64,7 @@ the returned actions), plus the **vault**.
 
 | Choice | Value | Notes |
 |---|---|---|
-| Model | **Holo3-122B-A10B** | Only this model. Do **not** use Nemotron, OpenClaw, or any other provided model/harness. |
+| Model | **`Hcompany/Holo3-35B-A3B`** | Exact Overshoot model id selected by the user on 2026-07-11. Do **not** use Nemotron, OpenClaw, or another model/harness. |
 | Harness | **HoloDesktop CLI** | Closed `hai-agent-runtime` binary owns the loop — see §4 for why this forces a proxy. |
 | Inference provider | **Overshoot** (OpenAI-compatible) | Start on the easiest working endpoint, then move to Overshoot (Steps 1→2). |
 | NemoClaw integration | **OpenShell sandbox** | Used for network-egress control / isolation, **not** as an orchestrator brain. |
@@ -96,7 +97,7 @@ the returned actions), plus the **vault**.
  │        the type-text field; forward the rewritten action       │
  └──────┼─────────────────────────────────────────────────────────┘
         ▼
-    Overshoot  (Holo3-122B-A10B)
+    Overshoot  (`Hcompany/Holo3-35B-A3B`)
 ```
 
 **Why a proxy and not "just change the request":** the closed `hai-agent-runtime` binary is what
@@ -201,7 +202,8 @@ Each step lists **Goal → Build → Verify**. Do not proceed past a failing Ver
 - **Goal:** clean repo, secrets handling, and confirmed external contracts before building.
 - **Build:** initialize the repo and `.env.example`; install HoloDesktop CLI; obtain keys for
   Overshoot (and the fallback provider). Write a tiny throwaway probe (not committed with keys)
-  that: (a) GETs the provider `/models` list and records the **exact** id for Holo3-122B-A10B; (b)
+  that: (a) GETs the provider `/models` list and confirms that
+  **`Hcompany/Holo3-35B-A3B`** is ready; (b)
   sends one hardcoded screenshot as an OpenAI-format `chat/completions` request and records the
   **exact response shape**, including whether actions come back as **tool calls** or text, and
   whether responses are **streamed**.
@@ -220,7 +222,7 @@ Each step lists **Goal → Build → Verify**. Do not proceed past a failing Ver
   OpenShell and what its allowed egress is; the decision is recorded in `docs/decisions/`.
 
 ### Step 2 — Move inference to Overshoot and measure
-- **Goal:** all inference goes to Overshoot on Holo3-122B-A10B; latency is known.
+- **Goal:** all inference goes to Overshoot on `Hcompany/Holo3-35B-A3B`; latency is known.
 - **Build:** set HoloDesktop's base URL / key to Overshoot using the id confirmed in Step 0.
 - **Verify:** the same task from Step 1 completes via Overshoot; you have recorded per-step and
   end-to-end latency (p50/p95) for a fixed small task set.
@@ -267,7 +269,7 @@ Each step lists **Goal → Build → Verify**. Do not proceed past a failing Ver
 
 ## 10. Definition of done (this component)
 
-- HoloDesktop runs Holo3-122B-A10B via Overshoot under OpenShell isolation.
+- HoloDesktop runs `Hcompany/Holo3-35B-A3B` via Overshoot under OpenShell isolation.
 - The proxy intercepts both directions, redacts outbound frames, resolves inbound actions, and
   handles streaming.
 - All Step 4 fixtures pass; every §8 constraint has a direct test.

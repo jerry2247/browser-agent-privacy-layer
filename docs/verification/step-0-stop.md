@@ -4,6 +4,11 @@ Date: 2026-07-11
 
 Status: **STOPPED — external contracts do not satisfy the blueprint.**
 
+> Superseded on 2026-07-11: the user explicitly authorized Overshoot's smaller
+> 35B model. The selected exact model id is `Hcompany/Holo3-35B-A3B`. The
+> historical findings below explain why the original 122B contract was stopped;
+> current Step 0 evidence is recorded separately when its gates pass.
+
 The blueprint requires every Step 0 `VERIFY` assumption to pass before later
 steps are built. The checks below found blocking mismatches, so the project must
 not silently substitute a model or claim end-to-end verification.
