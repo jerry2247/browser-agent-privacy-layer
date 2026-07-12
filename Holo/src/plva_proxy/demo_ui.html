@@ -100,7 +100,10 @@
     .modelpill svg{color:var(--fore-secondary)}
     .modelmenu{position:absolute;top:calc(100% + 6px);left:50%;width:240px;margin-left:-120px;
       background:var(--back-primary);border:1px solid var(--border-fade);border-radius:var(--radius-card);
-      box-shadow:0 12px 32px rgba(12,12,12,.1);padding:6px;z-index:5}
+      box-shadow:0 12px 32px rgba(12,12,12,.1);padding:6px;z-index:5;
+      max-height:min(56vh,420px);overflow-y:auto;overscroll-behavior:contain}
+    .labselect{min-height:32px;max-width:340px;padding:6px 10px;border:1px solid var(--border-soft);
+      border-radius:10px;background:var(--back-primary);color:var(--fore-primary);font-size:14px;line-height:20px}
     /* transitions-dev: 05-menu-dropdown */
     .t-dropdown {
       transform-origin: top left;
@@ -1122,7 +1125,14 @@
       const x=cols===4?selectedIndex%2:selectedIndex,y=cols===4?Math.floor(selectedIndex/2):0;
       return `<div class="connrow"><div class="connname">${title}<small>${detail}</small></div><div class="seg settingsseg animatedseg${klass}" style="--seg-x:${x};--seg-y:${y}"><span class="segindicator" aria-hidden="true"></span>${options.map(([v,l])=>`<button data-setting="${key}" data-value="${v}" class="${current===v?'active':''}" aria-pressed="${String(current===v)}" title="${esc(l)}">${esc(l)}</button>`).join("")}</div></div>`;
     }
-    function segCols(count){return count>=4?4:count===3?3:2}
+    function modelSelectRow(models){
+      const current=state.settings.model||"";
+      const list=(current&&!models.some(([v])=>v===current))?[[current,modelLabel(current)],...models]:models;
+      const body=list.length
+        ?`<select class="labselect" id="lab-model-select">${list.map(([v,l])=>`<option value="${esc(v)}"${v===current?" selected":""}>${esc(l)}</option>`).join("")}</select>`
+        :`<small>No models reported for this provider yet.</small>`;
+      return `<div class="connrow"><div class="connname">Model<small>Holo variant for the selected provider</small></div>${body}</div>`;
+    }
     function renderLab(){
       const cred=credentialSummary();
       const models=modelCatalog[state.settings.provider]||[];
@@ -1131,7 +1141,7 @@
           <div class="connrow credentialrow"><div class="connname">API key status<small>${esc(cred)}</small></div><span class="cred ${credentialStatusClass()}">${credentialStatusLabel()}</span>${credentialActions()}</div>
           ${segRow("API key source","Auto checks shell, Holo Desktop CLI, then project .env","credential_source",Object.entries(credentialSourceLabels),4)}
           ${segRow("Provider","Inference endpoint","provider",[["hcompany","H Company"],["overshoot","Overshoot"]],2)}
-          ${segRow("Model","Holo variant for the selected provider","model",models,segCols(models.length))}
+          ${modelSelectRow(models)}
         </section>`;
       $("#lab-pipeline").innerHTML=
         `<section class="policygroup"><h3>Redaction pipeline</h3>
@@ -1148,6 +1158,8 @@
         applySegmentSelection(b);
         saveSettings({[key]:value},{key,startedAt:performance.now()});
       });
+      const modelSelect=$("#lab-model-select");
+      if(modelSelect)modelSelect.onchange=()=>saveSettings({model:modelSelect.value});
       const connect=$("#connect-holo-cli");if(connect)connect.onclick=connectHoloCli;
       const copy=$("#copy-holo-login");if(copy)copy.onclick=()=>navigator.clipboard.writeText("holo login").then(()=>toast("Copied holo login"));
       const f=state.settings.features;
