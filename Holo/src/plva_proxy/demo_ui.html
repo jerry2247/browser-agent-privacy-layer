@@ -449,10 +449,22 @@
     const labels={NAME:"Name",DOB:"Date of birth",GOV_ID:"Government ID",SSN:"Social Security number",EMAIL:"Email",PHONE:"Phone",ADDRESS:"Postal address",BANK_ACCOUNT:"Bank account",CARD_NUMBER:"Card number",CVC:"Card security code",PASSWORD:"Password",API_KEY:"API key",AUTH_TOKEN:"Authentication token",PRIVATE_KEY:"Private key",SECRET:"Other secret"};
     const levelLabels={hide_use:"Use",approval:"Ask",blocked:"Block"};
     const providerLabels={hcompany:"H Company",overshoot:"Overshoot"};
-    const modelCatalog={
+    /* Static fallback; replaced by the provider's live /models list on load. */
+    let modelCatalog={
       hcompany:[["holo3-1-35b-a3b","Holo3-1 35B"],["holo3-122b-a10b","Holo3 122B"]],
       overshoot:[["Hcompany/Holo3-35B-A3B","Holo3 35B"]]
     };
+    async function loadModelCatalog(){
+      let d;try{d=await api("/api/models")}catch{return}
+      const next={};
+      for(const [p,info] of Object.entries(d.providers||{})){
+        if(info&&Array.isArray(info.models)&&info.models.length)next[p]=info.models.map(m=>[m.id,m.label||m.id]);
+      }
+      if(!Object.keys(next).length)return;
+      const changed=JSON.stringify(next)!==JSON.stringify(modelCatalog);
+      modelCatalog=next;
+      if(changed&&state)render(true);
+    }
     function modelLabel(id){for(const models of Object.values(modelCatalog)){const hit=models.find(([v])=>v===id);if(hit)return hit[1]}return id}
     function pillLabel(){const s=state.settings;return esc(s.model?modelLabel(s.model):(providerLabels[s.provider]||s.provider))}
     function modelMenuItems(){
@@ -975,6 +987,7 @@
     document.addEventListener("click",e=>{const m=$("#model-menu");if(m&&!e.target.closest(".modelwrap"))closeDropdown(m)});
     document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key==="Enter")run()});
     refresh();setInterval(refresh,900);
+    loadModelCatalog();setInterval(loadModelCatalog,300000);
   </script>
 </body>
 </html>
