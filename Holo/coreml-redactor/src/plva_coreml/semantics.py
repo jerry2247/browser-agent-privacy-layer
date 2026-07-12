@@ -63,16 +63,16 @@ _GLINER2_LABELS: Final = {
     "access_token": "AUTH_TOKEN",
     "recovery_code": "SECRET",
 }
+# The complete openai/privacy-filter taxonomy (8 categories, from id2label).
 _OPENAI_PF_LABELS: Final = {
-    "private_person": "GIVEN_NAME",
-    "private_name": "GIVEN_NAME",
-    "private_email": "EMAIL",
-    "private_phone": "PHONE",
+    "account_number": "BANK_ACCOUNT",
     "private_address": "STREET_NAME",
-    "private_id": "GOVERNMENT_ID",
-    "private_financial": "BANK_ACCOUNT",
-    "private_credential": "SECRET",
     "private_date": "DATE_OF_BIRTH",
+    "private_email": "EMAIL",
+    "private_person": "GIVEN_NAME",
+    "private_phone": "PHONE",
+    "private_url": "URL",
+    "secret": "SECRET",
 }
 ID_TO_LABEL: Final = (
     "O",
@@ -545,35 +545,26 @@ class _Gliner2NER:
             include_confidence=True,
             include_spans=True,
         )
+        # Result shape: {"entities": {"<label>": [{"text","confidence","start","end"}]}}
         spans: list[tuple[int, int, str, float]] = []
-        for entity in _walk_entities(result):
-            label = str(entity.get("label") or entity.get("type") or "")
-            if not label:
+        entities = result.get("entities") if isinstance(result, dict) else None
+        if not isinstance(entities, dict):
+            return spans
+        for label, hits in entities.items():
+            if not isinstance(hits, list):
                 continue
-            try:
-                start = int(entity["start"])
-                end = int(entity["end"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            score = float(entity.get("confidence") or entity.get("score") or 1.0)
-            spans.append((start, end, _GLINER2_LABELS.get(label.lower(), label.upper()), score))
+            mapped = _GLINER2_LABELS.get(str(label).lower(), str(label).upper())
+            for entity in hits:
+                if not isinstance(entity, dict):
+                    continue
+                try:
+                    start = int(entity["start"])
+                    end = int(entity["end"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                score = float(entity.get("confidence") or entity.get("score") or 1.0)
+                spans.append((start, end, mapped, score))
         return spans
-
-
-def _walk_entities(node: object) -> list[dict]:
-    """Collect span dicts from the nested gliner2 result shape defensively."""
-
-    found: list[dict] = []
-    if isinstance(node, dict):
-        if "start" in node and "end" in node:
-            found.append(node)
-        else:
-            for value in node.values():
-                found.extend(_walk_entities(value))
-    elif isinstance(node, (list, tuple)):
-        for item in node:
-            found.extend(_walk_entities(item))
-    return found
 
 
 class _OpenAIPrivacyFilterNER:
@@ -604,7 +595,7 @@ class _OpenAIPrivacyFilterNER:
         self.detect("My name is Alice Smith")
 
     def detect(self, text: str) -> list[tuple[int, int, str, float]]:
-        spans: list[tuple[int, int, str, float]] = []
+        raw: list[list] = []
         for entity in self._classifier(text):
             group = str(entity.get("entity_group") or entity.get("entity") or "")
             start = entity.get("start")
@@ -612,7 +603,25 @@ class _OpenAIPrivacyFilterNER:
             if not group or start is None or end is None:
                 continue
             score = float(entity.get("score", 0.0))
-            spans.append(
-                (int(start), int(end), _OPENAI_PF_LABELS.get(group.lower(), group.upper()), score)
+            raw.append(
+                [int(start), int(end), _OPENAI_PF_LABELS.get(group.lower(), group.upper()), score]
             )
+        # The BPE tokenizer has no word boundaries, so the pipeline emits one
+        # group per token run; contiguous same-label groups are one entity.
+        raw.sort(key=lambda item: item[0])
+        merged: list[list] = []
+        for span in raw:
+            if merged and merged[-1][2] == span[2] and span[0] <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], span[1])
+                merged[-1][3] = max(merged[-1][3], span[3])
+            else:
+                merged.append(span)
+        spans: list[tuple[int, int, str, float]] = []
+        for start, end, label, score in merged:
+            while start < end and text[start].isspace():
+                start += 1
+            while end > start and text[end - 1].isspace():
+                end -= 1
+            if end > start:
+                spans.append((start, end, label, score))
         return spans
