@@ -380,7 +380,7 @@ class DemoController:
         # Absent keys fall back to defaults so older clients keep working.
         detector_version = raw.get("detector_version") or "v2"
         ocr_engine = raw.get("ocr_engine") or "apple"
-        visual_detector = raw.get("visual_detector") or "on"
+        visual_detector = raw.get("visual_detector") or "off"
         if detector_version not in {"v2", "v3"}:
             raise ValueError("detector version is invalid")
         v3_detector = ROOT / "plva-v3" / "dist" / "visual" / "detector.onnx"
