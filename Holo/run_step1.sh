@@ -345,6 +345,20 @@ raise SystemExit(0 if ok else 1)
   echo "ERROR: preflight failed — wrong key (401) or provider unreachable. See $PROXY_LOG" >&2
   exit 1
 fi
+# Advertised is not usable: promotion-listed models can still 402 at call time.
+# A one-token text probe through the proxy surfaces tier/credit gating up front.
+PROBE_RESPONSE=$(curl -s -m 30 "http://127.0.0.1:$PORT/v1/chat/completions" \
+  -H 'Content-Type: application/json' \
+  -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":1}" \
+  -w $'\n%{http_code}')
+PROBE_CODE="${PROBE_RESPONSE##*$'\n'}"
+if [[ "$PROBE_CODE" != 200 ]]; then
+  echo "ERROR: model $MODEL is advertised but rejected a 1-token probe (HTTP $PROBE_CODE)" >&2
+  printf '%s' "${PROBE_RESPONSE%$'\n'*}" | head -c 400 >&2
+  echo >&2
+  exit 1
+fi
+echo "--- preflight: $MODEL answered a 1-token probe"
 
 # 3) The Step 1 task. Frame-bearing run artifacts go to a private ephemeral directory.
 RUNS_DIR=$(mktemp -d /tmp/holo-step1-runs.XXXXXX)
