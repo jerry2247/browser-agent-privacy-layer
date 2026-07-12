@@ -184,7 +184,7 @@ if [[ "$REDACTION_ENABLED" == 1 ]]; then
       DETECTOR_VERSION="${PLVA_DETECTOR_VERSION:-v2}"
       case "$DETECTOR_VERSION" in
         v2) DEFAULT_VISUAL_MODEL="plva-v2-baseline/runtime/training/artifacts/plva-visual-agpl-test-v2/visual/detector.onnx" ;;
-        v3) DEFAULT_VISUAL_MODEL="plvas-v3/models/visual/webredact/detector.onnx" ;;
+        v3) DEFAULT_VISUAL_MODEL="plva-v3/dist/visual/detector.onnx" ;;
         *)
           echo "ERROR: PLVA_DETECTOR_VERSION must be v2 or v3" >&2
           exit 1
@@ -194,8 +194,7 @@ if [[ "$REDACTION_ENABLED" == 1 ]]; then
       if [[ ! -f "$VISUAL_MODEL" ]]; then
         echo "ERROR: visual detector not found: $VISUAL_MODEL" >&2
         if [[ "$DETECTOR_VERSION" == "v3" && -z "${PLVA_VISUAL_MODEL:-}" ]]; then
-          echo "       The pinned v3 release ships OpenVINO IR only (nano640.bin/xml)." >&2
-          echo "       Export an ONNX detector to that path (plvas-v3/training/visual/export_detector_onnx.py) or select v2." >&2
+          echo "       Extract the frozen plva-v3 bundle to Holo/plva-v3 or select v2." >&2
         fi
         exit 1
       fi

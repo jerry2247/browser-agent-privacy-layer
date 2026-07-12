@@ -379,11 +379,11 @@ class DemoController:
         visual_detector = raw.get("visual_detector") or "on"
         if detector_version not in {"v2", "v3"}:
             raise ValueError("detector version is invalid")
-        v3_detector = ROOT / "plvas-v3" / "models" / "visual" / "webredact" / "detector.onnx"
+        v3_detector = ROOT / "plva-v3" / "dist" / "visual" / "detector.onnx"
         if detector_version == "v3" and visual_detector == "on" and not v3_detector.is_file():
             raise ValueError(
-                "the v3 detector has no ONNX export yet; export one to "
-                "plvas-v3/models/visual/webredact/detector.onnx or keep v2"
+                "the v3 detector is not installed; extract the frozen plva-v3 "
+                "bundle to Holo/plva-v3 or keep v2"
             )
         if ocr_engine not in {"apple", "rapidocr"}:
             raise ValueError("OCR engine is invalid")

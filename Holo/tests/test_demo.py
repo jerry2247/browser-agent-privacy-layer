@@ -377,8 +377,11 @@ def test_settings_accept_models_from_the_live_catalog(
     assert settings["model"] == demo.PROVIDERS["hcompany"].model
 
 
-def test_settings_reject_v3_detector_without_onnx_export() -> None:
+def test_settings_gate_v3_detector_on_the_installed_bundle(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     controller = demo.DemoController()
+    monkeypatch.setattr(demo, "ROOT", tmp_path)
     base = {
         "plva_enabled": True,
         "provider": "hcompany",
@@ -386,10 +389,15 @@ def test_settings_reject_v3_detector_without_onnx_export() -> None:
         "lifecycle": "eager",
         "features": {name: True for name in demo.FEATURE_ENV},
     }
-    with pytest.raises(ValueError, match="ONNX"):
+    with pytest.raises(ValueError, match="not installed"):
         controller.set_settings({**base, "detector_version": "v3"})
     # With the visual stage off the missing model is irrelevant.
     settings = controller.set_settings(
         {**base, "detector_version": "v3", "visual_detector": "off"}
     )
+    assert settings["detector_version"] == "v3"
+    exported = tmp_path / "plva-v3" / "dist" / "visual" / "detector.onnx"
+    exported.parent.mkdir(parents=True)
+    exported.write_bytes(b"onnx")
+    settings = controller.set_settings({**base, "detector_version": "v3"})
     assert settings["detector_version"] == "v3"
