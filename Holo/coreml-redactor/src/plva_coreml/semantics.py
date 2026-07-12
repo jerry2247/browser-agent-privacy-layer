@@ -251,17 +251,17 @@ class SemanticPipeline:
                     spans.append(
                         Span(raw_start, raw_end, label, score, "ner", raw[raw_start:raw_end])
                     )
-            return _merge_spans(spans)
+            return _merge_spans([span for span in spans if _credible_person_hit(span, raw)])
         encoding = self._tokenizer.encode(masked)
         encodings = [encoding, *encoding.overflowing]
-        spans: list[Span] = []
+        detected_spans: list[Span] = []
         for window in encodings:
             ids = np.asarray(window.ids, dtype=np.int64)[None]
             attention = np.asarray(window.attention_mask, dtype=np.int64)[None]
             type_ids = np.asarray(window.type_ids, dtype=np.int64)[None]
             logits = self._run_rampart(ids, attention, type_ids)[0]
             probabilities = _softmax(logits)
-            spans.extend(
+            detected_spans.extend(
                 _aggregate_tokens(
                     probabilities,
                     window.offsets,
@@ -271,7 +271,9 @@ class SemanticPipeline:
                     raw_ends,
                 )
             )
-        return _merge_spans(spans)
+        return _merge_spans(
+            [span for span in detected_spans if _credible_person_hit(span, raw)]
+        )
 
     def _run_rampart(
         self, ids: np.ndarray, attention: np.ndarray, type_ids: np.ndarray
@@ -446,7 +448,52 @@ def _filter_contextual_hits(hits: list[Span], text: str) -> list[Span]:
         )
         or len(kinds) >= 2
     )
-    return [hit for hit in hits if hit.label not in address_labels or has_context]
+    return [
+        hit
+        for hit in hits
+        if (hit.label not in address_labels or has_context) and _credible_person_hit(hit)
+    ]
+
+
+def _credible_person_hit(hit: Span, document: str | None = None) -> bool:
+    """Reject low-information person fragments emitted by screenshot NER.
+
+    Rampart is useful as a recall backstop, but on OCR-heavy developer UIs it
+    can label subword fragments such as ``e``, ``st`` or ``int`` as names.
+    Those fragments are not actionable PII and become especially damaging
+    when placed in the cross-frame vault.  Other PII classes and deterministic
+    rules are unchanged.
+    """
+
+    if hit.label not in {"GIVEN_NAME", "SURNAME"} or hit.source != "ner":
+        return True
+    exact = hit.text.strip()
+    letters = re.findall(r"[^\W\d_]", exact, re.UNICODE)
+    if hit.score < 0.70:
+        return False
+    explicit_context = False
+    if document is not None:
+        if hit.start > 0 and document[hit.start - 1].isalnum():
+            return False
+        if hit.end < len(document) and document[hit.end].isalnum():
+            return False
+        prefix = document[max(0, hit.start - 40) : hit.start]
+        explicit_context = re.search(
+            r"\b(?:name|user|contact|recipient|customer|employee)\s*[:=]?\s*$",
+            prefix,
+            re.IGNORECASE,
+        ) is not None
+    if explicit_context:
+        return len(letters) >= 2
+    if len(letters) < 3:
+        return False
+    title_cased = exact[:1].isupper() and not exact.isupper()
+    if document is None:
+        return title_cased
+    # Lowercase OCR names remain eligible only at high confidence.  This keeps
+    # real lowercase account names while rejecting the noisy 0.4-0.8 subword
+    # outputs seen in BrowserUse schemas and developer UIs.
+    return title_cased or (len(letters) >= 4 and hit.score >= 0.85)
 
 
 def _detect_sensitive_cues(text: str) -> list[str]:

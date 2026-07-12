@@ -308,11 +308,14 @@ class DemoController:
             "plva_enabled": True,
             "provider": "hcompany",
             "model": PROVIDERS["hcompany"].model,
-            "vision_mode": "cascade",
+            "vision_mode": "fast",
             "lifecycle": "eager",
             "detector_version": "v2",
             "ocr_engine": "apple",
-            "visual_detector": "on",
+            # The current visual checkpoint over-masks ordinary BrowserUse UI.
+            # OCR + semantic rules are the calibrated default; the visual lab
+            # path remains opt-in for detector evaluation.
+            "visual_detector": "off",
             "semantic_engine": "rampart",
             "tools": "off",
             "features": {name: True for name in FEATURE_ENV},

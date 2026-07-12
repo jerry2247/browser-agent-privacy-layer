@@ -1493,6 +1493,24 @@ def main() -> None:
         help="visual detector ONNX override; OCR and Rampart still come from --redact",
     )
     parser.add_argument(
+        "--ocr-engine",
+        choices=("apple", "rapidocr"),
+        default="apple",
+        help="Vision worker OCR engine: native Apple Vision or Core ML RapidOCR",
+    )
+    parser.add_argument(
+        "--no-visual-detector",
+        action="store_true",
+        help="skip the visual detector stage in the Vision worker; OCR and Rampart still run",
+    )
+    parser.add_argument(
+        "--semantic-engine",
+        choices=("rampart", "gliner2", "openai-pf"),
+        default="rampart",
+        help="Vision worker text classifier: frozen Rampart, GLiNER2 PII, "
+        "or openai/privacy-filter (alternatives need a local frozen model copy)",
+    )
+    parser.add_argument(
         "--redact-lifecycle",
         choices=("adaptive", "eager", "cold"),
         default="adaptive",
@@ -1687,6 +1705,9 @@ def main() -> None:
                         cache_root=vision_root / ".cache",
                         vision_mode=args.vision_mode,
                         visual_model=args.visual_model,
+                        ocr_engine=args.ocr_engine,
+                        visual_enabled=not args.no_visual_detector,
+                        semantic_engine=args.semantic_engine,
                     )
                 )
             else:

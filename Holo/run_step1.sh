@@ -140,7 +140,7 @@ if [[ "$REDACTION_ENABLED" == 1 ]]; then
     --redact-engine "$REDACT_ENGINE"
     --redact-backend "${PLVA_REDACT_BACKEND:-auto}"
     --vision-worker "${PLVA_VISION_WORKER:-coreml-redactor}"
-    --vision-mode "${PLVA_VISION_MODE:-cascade}"
+    --vision-mode "${PLVA_VISION_MODE:-fast}"
     --redact-lifecycle "${PLVA_REDACT_LIFECYCLE:-adaptive}"
     --redact-idle-seconds "${PLVA_REDACT_IDLE_SECONDS:-60}"
     --audit-capacity "${PLVA_AUDIT_CAPACITY:-32}"
@@ -177,7 +177,7 @@ if [[ "$REDACTION_ENABLED" == 1 ]]; then
         ;;
     esac
     HOOK_ARGS+=(--semantic-engine "$SEMANTIC_ENGINE")
-    parse_on_off VISUAL_DETECTOR "${PLVA_VISUAL_DETECTOR:-1}" PLVA_VISUAL_DETECTOR
+    parse_on_off VISUAL_DETECTOR "${PLVA_VISUAL_DETECTOR:-0}" PLVA_VISUAL_DETECTOR
     if [[ "$VISUAL_DETECTOR" == 0 ]]; then
       HOOK_ARGS+=(--no-visual-detector)
     else
